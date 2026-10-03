@@ -1,47 +1,51 @@
-// Small fetch helper shared by every component.
-// Centralizing this makes it easy to handle "backend unavailable" errors
-// consistently everywhere in the UI.
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
-export const API_BASE = "http://localhost:8000";
-
-/**
- * Wraps fetch() with friendly error messages for common failure modes:
- * backend not running, Ollama down (503 from backend), timeouts, etc.
- */
-export async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 180000); // 60s timeout
+
+  // Ollama can take longer than a normal API
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 120000);
 
   let response;
+
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...options,
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch (error) {
     clearTimeout(timeoutId);
-    if (err.name === "AbortError") {
+
+    if (error.name === "AbortError") {
       throw new Error(
-        "The request timed out. The model may be taking too long to respond.",
+        "The request timed out. Ollama is taking too long to respond.",
       );
     }
+
     throw new Error(
-      "Could not reach the backend. Is it running at " +
-        API_BASE +
-        "? (uvicorn main:app --reload --port 8000)",
+      `Cannot reach backend at ${API_BASE}. Make sure FastAPI is running.`,
     );
   }
+
   clearTimeout(timeoutId);
 
   if (!response.ok) {
-    let detail = `Request failed with status ${response.status}`;
+    let message = `Request failed: ${response.status}`;
+
     try {
-      const errorBody = await response.json();
-      if (errorBody?.detail) detail = errorBody.detail;
+      const body = await response.json();
+
+      if (body?.detail) {
+        message = body.detail;
+      }
     } catch {
-      // response wasn't JSON - keep the generic message
+      // Ignore JSON parsing error
     }
-    throw new Error(detail);
+
+    throw new Error(message);
   }
 
   return response.json();
@@ -50,13 +54,22 @@ export async function apiFetch(path, options = {}) {
 export async function apiFetchJSON(path, body, method = "POST") {
   return apiFetch(path, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
 }
 
 export async function apiFetchForm(path, file) {
   const formData = new FormData();
+
   formData.append("file", file);
-  return apiFetch(path, { method: "POST", body: formData });
+
+  return apiFetch(path, {
+    method: "POST",
+    body: formData,
+  });
 }
+
+export default apiFetch;

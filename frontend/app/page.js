@@ -1,41 +1,85 @@
 "use client";
 
 import { useState } from "react";
-import StatusBar from "./components/StatusBar";
-import ResumeUpload from "./components/ResumeUpload";
-import ResumeChat from "./components/ResumeChat";
-import JobAnalyzer from "./components/JobAnalyzer";
-import MatchResult from "./components/MatchResult";
-import WorkflowPanel from "./components/WorkflowPanel";
+
+import AppShell from "./components/layout/AppShell";
+
+import HeroSection from "./components/dashboard/HeroSection";
+import EmptyState from "./components/dashboard/EmptyState";
+
+import ResumeUpload from "./components/resume/ResumeUpload";
+import ResumeChat from "./components/resume/ResumeChat";
+
+import JobAnalyzer from "./components/job/JobAnalyzer";
+
+import MatchResult from "./components/analysis/MatchResult";
+
+import WorkflowPanel from "./components/interview/WorkflowPanel";
 
 export default function Home() {
-  // Shared state: once the resume + job description have both been
-  // analyzed once, we reuse the raw text for matching & the workflow
-  // instead of asking the user to re-upload/re-paste everything again.
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
 
+  const hasAnalysis = resumeText.length > 0 && jobDescription.length > 0;
+
   return (
-    <main className="page">
-      <div className="header">
-        <h1>🧠 AI Job Intelligence & Resume Copilot</h1>
-        <p>A local, GenAI-powered resume & job-matching assistant - runs entirely on Ollama + Llama 3.2.</p>
-        <StatusBar />
-      </div>
+    <AppShell>
+      <HeroSection />
 
-      <div className="grid grid-2">
+      {/* Resume + Job Input */}
+      <section className="workspace-grid">
         <ResumeUpload onResumeAnalyzed={setResumeText} />
+
         <JobAnalyzer onJobDescriptionChange={setJobDescription} />
-      </div>
+      </section>
 
-      <div className="section-title">Resume Chat</div>
-      <ResumeChat />
+      {/* Analysis */}
+      {hasAnalysis ? (
+        <>
+          <section className="analysis-section">
+            <MatchResult
+              resumeText={resumeText}
+              jobDescription={jobDescription}
+            />
+          </section>
 
-      <div className="section-title">Resume vs Job Match</div>
-      <MatchResult resumeText={resumeText} jobDescription={jobDescription} />
+          {/* AI Tools */}
+          <section className="two-column-section">
+            <div className="feature-card">
+              <div className="feature-header">
+                <div className="feature-icon">◌</div>
 
-      <div className="section-title">Interview Prep & Learning Plan</div>
-      <WorkflowPanel resumeText={resumeText} jobDescription={jobDescription} />
-    </main>
+                <div>
+                  <h3>AI Resume Assistant</h3>
+
+                  <p>Ask questions about your resume and target role.</p>
+                </div>
+              </div>
+
+              <ResumeChat />
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-header">
+                <div className="feature-icon">◇</div>
+
+                <div>
+                  <h3>Interview Intelligence</h3>
+
+                  <p>Generate a personalized preparation roadmap.</p>
+                </div>
+              </div>
+
+              <WorkflowPanel
+                resumeText={resumeText}
+                jobDescription={jobDescription}
+              />
+            </div>
+          </section>
+        </>
+      ) : (
+        <EmptyState />
+      )}
+    </AppShell>
   );
 }
